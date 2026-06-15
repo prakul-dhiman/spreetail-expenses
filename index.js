@@ -11,7 +11,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/groups', require('./src/routes/groups'));
-app.use('/api/expenses', require('./src/routes/expenses'));
+app.use('/api/expenses', require('./src/routes/expenses').router);
 app.use('/api/import', require('./src/routes/import'));
 app.use('/api/settlements', require('./src/routes/settlements'));
 
