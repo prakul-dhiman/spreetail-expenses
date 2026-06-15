@@ -169,6 +169,40 @@ async function importCSV(filePath, groupId) {
   const userMap = {}; // name -> id
   for (const u of usersRes.rows) userMap[u.name] = u.id;
 
+  // Auto-provision all known flatmates so the import works without manual pre-registration.
+  // Each gets a placeholder password. They can reset it after their first login.
+  const bcrypt = require('bcryptjs');
+  const CANONICAL_MEMBERS = [
+    { name: 'Aisha', email: 'aisha@spreetail.local' },
+    { name: 'Rohan', email: 'rohan@spreetail.local' },
+    { name: 'Priya', email: 'priya@spreetail.local' },
+    { name: 'Meera', email: 'meera@spreetail.local' },
+    { name: 'Dev',   email: 'dev@spreetail.local'   },
+    { name: 'Sam',   email: 'sam@spreetail.local'   }
+  ];
+  const placeholderHash = await bcrypt.hash('spreetail2026', 10);
+  for (const m of CANONICAL_MEMBERS) {
+    if (!userMap[m.name]) {
+      const res = await pool.query(
+        `INSERT INTO users (name, email, password_hash)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        [m.name, m.email, placeholderHash]
+      );
+      userMap[m.name] = res.rows[0].id;
+    }
+    // Ensure they are a member of this group with correct membership dates
+    const joinDate = MEMBERSHIP_DATES[m.name]?.joined_at || new Date('2026-02-01');
+    const leftDate = MEMBERSHIP_DATES[m.name]?.left_at || null;
+    await pool.query(
+      `INSERT INTO group_memberships (group_id, user_id, joined_at, left_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (group_id, user_id) DO NOTHING`,
+      [groupId, userMap[m.name], joinDate, leftDate]
+    );
+  }
+
   const processedRows = [];
 
   for (let i = 0; i < rows.length; i++) {
