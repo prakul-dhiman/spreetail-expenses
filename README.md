@@ -3,7 +3,7 @@
 A shared expense tracker for flat mates — built for the Spreetail internship assignment.
 
 ## Live App
-[https://spreetail-expenses.onrender.com](https://spreetail-expenses.onrender.com)
+[https://spreetail-expenses-5sd9.onrender.com](https://spreetail-expenses-5sd9.onrender.com)
 
 ## Tech Stack
 - **Backend:** Node.js + Express
