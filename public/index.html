@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spreetail Expenses</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+  .hidden { display: none !important; }
+
+  /* Auth */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .auth-box { background: white; padding: 2rem; border-radius: 12px; width: 360px; box-shadow: 0 2px 20px rgba(0,0,0,0.1); }
+  .auth-box h1 { margin-bottom: 1.5rem; font-size: 1.4rem; }
+  .auth-box input { width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
+  .auth-box button { width: 100%; padding: 0.7rem; background: #4f46e5; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 0.5rem; }
+  .auth-box button.secondary { background: white; color: #4f46e5; border: 1px solid #4f46e5; }
+  .auth-tab { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .auth-tab button { flex: 1; background: white; color: #666; border: 1px solid #ddd; font-size: 0.9rem; }
+  .auth-tab button.active { background: #4f46e5; color: white; border-color: #4f46e5; }
+
+  /* App layout */
+  #app-screen { min-height: 100vh; }
+  nav { background: #4f46e5; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+  nav h1 { font-size: 1.1rem; font-weight: 600; }
+  nav button { background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; }
+  .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e5e7eb; }
+  .tab { padding: 0.6rem 1.2rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #666; font-size: 0.95rem; }
+  .tab.active { border-bottom-color: #4f46e5; color: #4f46e5; font-weight: 600; }
+
+  /* Cards */
+  .card { background: white; border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .card h2 { font-size: 1rem; margin-bottom: 1rem; color: #111; }
+
+  /* Buttons */
+  .btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+  .btn-primary { background: #4f46e5; color: white; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+  /* Forms */
+  .form-group { margin-bottom: 0.75rem; }
+  .form-group label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 0.3rem; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.5rem 0.7rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { text-align: left; padding: 0.6rem; background: #f9fafb; color: #555; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 0.6rem; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+
+  /* Balances */
+  .balance-card { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; }
+  .balance-card:last-child { border-bottom: none; }
+  .amount-positive { color: #16a34a; font-weight: 600; }
+  .amount-negative { color: #dc2626; font-weight: 600; }
+  .transaction { background: #fef9c3; border-radius: 6px; padding: 0.6rem 0.75rem; margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+
+  /* Import report */
+  .anomaly-item { background: #fff7ed; border-left: 3px solid #f97316; padding: 0.6rem 0.75rem; margin-bottom: 0.4rem; border-radius: 0 6px 6px 0; font-size: 0.85rem; }
+  .anomaly-item.rejected { border-color: #ef4444; background: #fef2f2; }
+  .anomaly-item.imported { border-color: #22c55e; background: #f0fdf4; }
+  .anomaly-item.pending { border-color: #f59e0b; background: #fffbeb; }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-yellow { background: #fef9c3; color: #92400e; }
+
+  .msg { padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+  .msg.success { background: #dcfce7; color: #15803d; }
+  .msg.error { background: #fee2e2; color: #dc2626; }
+
+  .group-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+  .group-item:hover { background: #f9fafb; }
+  .group-item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>💸 Spreetail Expenses</h1>
+    <div class="auth-tab">
+      <button class="active" onclick="showAuthTab('login')">Login</button>
+      <button onclick="showAuthTab('register')">Register</button>
+    </div>
+    <div id="login-form">
+      <input type="email" id="login-email" placeholder="Email" />
+      <input type="password" id="login-password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+    </div>
+    <div id="register-form" class="hidden">
+      <input type="text" id="reg-name" placeholder="Your name" />
+      <input type="email" id="reg-email" placeholder="Email" />
+      <input type="password" id="reg-password" placeholder="Password" />
+      <button onclick="register()">Create Account</button>
+    </div>
+    <div id="auth-msg"></div>
+  </div>
+</div>
+
+<!-- App Screen -->
+<div id="app-screen" class="hidden">
+  <nav>
+    <h1>💸 Spreetail Expenses</h1>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <span id="nav-username" style="font-size:0.9rem;opacity:0.9"></span>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Group selector -->
+    <div id="groups-view">
+      <div class="card">
+        <h2>Your Groups</h2>
+        <div id="groups-list"></div>
+        <hr style="margin:1rem 0">
+        <div class="form-row">
+          <input type="text" id="new-group-name" placeholder="New group name (e.g. Flat expenses)" />
+          <button class="btn btn-primary" onclick="createGroup()">Create Group</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group detail view -->
+    <div id="group-view" class="hidden">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+        <button class="btn" onclick="backToGroups()">← Groups</button>
+        <h2 id="group-name" style="font-size:1.2rem"></h2>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('balances')">Balances</div>
+        <div class="tab" onclick="switchTab('expenses')">Expenses</div>
+        <div class="tab" onclick="switchTab('settlements')">Settlements</div>
+        <div class="tab" onclick="switchTab('import')">Import CSV</div>
+        <div class="tab" onclick="switchTab('members')">Members</div>
+      </div>
+
+      <!-- Balances Tab -->
+      <div id="tab-balances">
+        <div class="card">
+          <h2>Who Owes Whom</h2>
+          <div id="transactions-list"></div>
+        </div>
+        <div class="card">
+          <h2>Individual Balances</h2>
+          <div id="balances-list"></div>
+        </div>
+      </div>
+
+      <!-- Expenses Tab -->
+      <div id="tab-expenses" class="hidden">
+        <div class="card">
+          <h2>Add Expense</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="exp-desc" placeholder="e.g. Dinner at Marina" />
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="exp-date" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount</label>
+              <input type="number" id="exp-amount" placeholder="0.00" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label>Currency</label>
+              <select id="exp-currency">
+                <option value="INR">INR ₹</option>
+                <option value="USD">USD $</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Paid By</label>
+              <select id="exp-paidby"></select>
+            </div>
+            <div class="form-group">
+              <label>Split Type</label>
+              <select id="exp-splittype" onchange="toggleSplitDetails()">
+                <option value="equal">Equal</option>
+                <option value="unequal">Unequal</option>
+                <option value="percentage">Percentage</option>
+                <option value="share">By Share</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Split With (select members)</label>
+            <div id="exp-members-check" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
+          </div>
+          <div class="form-group hidden" id="split-details-group">
+            <label id="split-details-label">Split Details</label>
+            <textarea id="exp-splitdetails" rows="2" placeholder="e.g. Rohan 700; Priya 400; Meera 400"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="addExpense()">Add Expense</button>
+          <div id="exp-msg" class="msg hidden"></div>
+        </div>
+
+        <div class="card">
+          <h2>All Expenses</h2>
+          <table>
+            <thead><tr><th>Date</th><th>Description</th><th>Paid By</th><th>Amount</th><th>Split</th><th></th></tr></thead>
+            <tbody id="expenses-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settlements Tab -->
+      <div id="tab-settlements" class="hidden">
+        <div class="card">
+          <h2>Record a Payment</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>From (who paid)</label>
+              <select id="set-from"></select>
+            </div>
+            <div class="form-group">
+              <label>To (who received)</label>
+              <select id="set-to"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" id="set-amount" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="set-date" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Note (optional)</label>
+            <input type="text" id="set-note" placeholder="e.g. UPI transfer" />
+          </div>
+          <button class="btn btn-primary" onclick="addSettlement()">Record Payment</button>
+        </div>
+        <div class="card">
+          <h2>Payment History</h2>
+          <table>
+            <thead><tr><th>Date</th><th>From</th><th>To</th><th>Amount</th><th>Note</th></tr></thead>
+            <tbody id="settlements-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Import Tab -->
+      <div id="tab-import" class="hidden">
+        <div class="card">
+          <h2>Import expenses_export.csv</h2>
+          <p style="color:#666;font-size:0.9rem;margin-bottom:1rem">The importer detects all data anomalies and reports exactly what it did with each row. No silent changes.</p>
+          <div class="form-group">
+            <label>Select CSV file</label>
+            <input type="file" id="csv-file" accept=".csv" />
+          </div>
+          <button class="btn btn-primary" onclick="importCSV()">Import</button>
+          <div id="import-loading" class="hidden" style="margin-top:1rem;color:#666">Processing...</div>
+        </div>
+        <div id="import-report" class="hidden">
+          <div class="card">
+            <h2>Import Report</h2>
+            <div id="import-summary" style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;"></div>
+            <div id="import-details"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Members Tab -->
+      <div id="tab-members" class="hidden">
+        <div class="card">
+          <h2>Group Members</h2>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Left</th><th></th></tr></thead>
+            <tbody id="members-table"></tbody>
+          </table>
+          <hr style="margin:1rem 0">
+          <h2 style="margin-bottom:0.75rem">Add Member</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>User email</label>
+              <input type="email" id="add-member-email" placeholder="their@email.com" />
+            </div>
+            <div class="form-group">
+              <label>Joined date</label>
+              <input type="date" id="add-member-date" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addMember()">Add Member</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let token = localStorage.getItem('token');
+let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+let currentGroup = null;
+let groupMembers = [];
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+function showAuthTab(tab) {
+  document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+  document.querySelectorAll('.auth-tab button').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+  });
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const res = await fetch(`${API}/auth/login`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+  const data = await res.json();
+  if (data.token) { saveSession(data); showApp(); }
+  else showMsg('auth-msg', data.error, 'error');
+}
+
+async function register() {
+  const name = document.getElementById('reg-name').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  const res = await fetch(`${API}/auth/register`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, email, password }) });
+  const data = await res.json();
+  if (data.token) { saveSession(data); showApp(); }
+  else showMsg('auth-msg', data.error, 'error');
+}
+
+function saveSession(data) {
+  token = data.token;
+  currentUser = data.user;
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(currentUser));
+}
+
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
+
+function showApp() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app-screen').classList.remove('hidden');
+  document.getElementById('nav-username').textContent = currentUser.name;
+  loadGroups();
+}
+
+// ─── GROUPS ──────────────────────────────────────────────────────────────────
+async function loadGroups() {
+  const data = await apiFetch('/groups');
+  const list = document.getElementById('groups-list');
+  list.innerHTML = data.length ? data.map(g => `
+    <div class="group-item" onclick="openGroup(${g.id}, '${g.name}')">
+      <span>📁 ${g.name}</span>
+      <span style="color:#4f46e5;font-size:0.85rem">Open →</span>
+    </div>`).join('') : '<p style="color:#999;font-size:0.9rem">No groups yet. Create one above.</p>';
+}
+
+async function createGroup() {
+  const name = document.getElementById('new-group-name').value.trim();
+  if (!name) return;
+  await apiFetch('/groups', 'POST', { name });
+  document.getElementById('new-group-name').value = '';
+  loadGroups();
+}
+
+async function openGroup(id, name) {
+  currentGroup = { id, name };
+  document.getElementById('groups-view').classList.add('hidden');
+  document.getElementById('group-view').classList.remove('hidden');
+  document.getElementById('group-name').textContent = name;
+  await loadMembers();
+  switchTab('balances');
+}
+
+function backToGroups() {
+  currentGroup = null;
+  document.getElementById('group-view').classList.add('hidden');
+  document.getElementById('groups-view').classList.remove('hidden');
+  loadGroups();
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  ['balances','expenses','settlements','import','members'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
+  });
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['balances','expenses','settlements','import','members'][i] === name);
+  });
+  if (name === 'balances') loadBalances();
+  if (name === 'expenses') loadExpenses();
+  if (name === 'settlements') loadSettlements();
+  if (name === 'members') loadMembers();
+}
+
+// ─── BALANCES ────────────────────────────────────────────────────────────────
+async function loadBalances() {
+  const data = await apiFetch(`/groups/${currentGroup.id}/balances`);
+  
+  document.getElementById('transactions-list').innerHTML = data.transactions.length ?
+    data.transactions.map(t => `
+      <div class="transaction">
+        <span><strong>${t.from}</strong> → <strong>${t.to}</strong></span>
+        <span class="amount-negative">₹${t.amount.toLocaleString('en-IN')}</span>
+      </div>`).join('') : '<p style="color:#16a34a">✓ All settled up!</p>';
+
+  document.getElementById('balances-list').innerHTML = data.balances.map(b => `
+    <div class="balance-card">
+      <span>${b.name}</span>
+      <span class="${b.net >= 0 ? 'amount-positive' : 'amount-negative'}">
+        ${b.net >= 0 ? '+' : ''}₹${Math.abs(b.net).toLocaleString('en-IN')}
+        <small style="font-weight:400;opacity:0.7">${b.net >= 0 ? 'gets back' : 'owes'}</small>
+      </span>
+    </div>`).join('');
+}
+
+// ─── EXPENSES ────────────────────────────────────────────────────────────────
+async function loadExpenses() {
+  const data = await apiFetch(`/expenses/${currentGroup.id}`);
+  // Populate paidby dropdown
+  document.getElementById('exp-paidby').innerHTML = groupMembers.map(m =>
+    `<option value="${m.id}">${m.name}</option>`).join('');
+  // Member checkboxes
+  document.getElementById('exp-members-check').innerHTML = groupMembers.map(m =>
+    `<label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer">
+      <input type="checkbox" value="${m.id}" checked /> ${m.name}
+    </label>`).join('');
+
+  document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+
+  document.getElementById('expenses-table').innerHTML = data.map(e => `
+    <tr>
+      <td>${new Date(e.expense_date).toLocaleDateString('en-IN')}</td>
+      <td>${e.description}${e.is_refund ? ' <span class="badge badge-green">refund</span>' : ''}</td>
+      <td>${e.paid_by_name}</td>
+      <td>${e.currency === 'USD' ? '$' : '₹'}${parseFloat(e.amount).toLocaleString('en-IN')}
+        ${e.currency === 'USD' ? `<br><small style="color:#888">₹${parseFloat(e.amount_inr).toLocaleString('en-IN')}</small>` : ''}
+      </td>
+      <td>${e.split_type}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">✕</button></td>
+    </tr>`).join('');
+}
+
+function toggleSplitDetails() {
+  const type = document.getElementById('exp-splittype').value;
+  const group = document.getElementById('split-details-group');
+  const label = document.getElementById('split-details-label');
+  group.classList.toggle('hidden', type === 'equal');
+  if (type === 'unequal') label.textContent = 'Amounts: e.g. Rohan 700; Priya 400';
+  if (type === 'percentage') label.textContent = 'Percentages: e.g. Aisha 30%; Rohan 30%; Priya 40%';
+  if (type === 'share') label.textContent = 'Shares: e.g. Aisha 1; Rohan 2; Priya 1';
+}
+
+async function addExpense() {
+  const memberIds = [...document.querySelectorAll('#exp-members-check input:checked')].map(i => parseInt(i.value));
+  const body = {
+    group_id: currentGroup.id,
+    description: document.getElementById('exp-desc').value,
+    amount: parseFloat(document.getElementById('exp-amount').value),
+    currency: document.getElementById('exp-currency').value,
+    paid_by: parseInt(document.getElementById('exp-paidby').value),
+    expense_date: document.getElementById('exp-date').value,
+    split_type: document.getElementById('exp-splittype').value,
+    member_ids: memberIds,
+    split_details: document.getElementById('exp-splitdetails').value
+  };
+  const res = await apiFetch('/expenses', 'POST', body);
+  if (res.id) {
+    showMsg('exp-msg', 'Expense added!', 'success');
+    loadExpenses();
+  } else {
+    showMsg('exp-msg', res.error, 'error');
+  }
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  await apiFetch(`/expenses/${id}`, 'DELETE');
+  loadExpenses();
+  loadBalances();
+}
+
+// ─── SETTLEMENTS ─────────────────────────────────────────────────────────────
+async function loadSettlements() {
+  const data = await apiFetch(`/settlements/${currentGroup.id}`);
+  document.getElementById('set-from').innerHTML = groupMembers.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('set-to').innerHTML = groupMembers.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('set-date').value = new Date().toISOString().split('T')[0];
+
+  document.getElementById('settlements-table').innerHTML = data.map(s => `
+    <tr>
+      <td>${new Date(s.settlement_date).toLocaleDateString('en-IN')}</td>
+      <td>${s.from_name}</td>
+      <td>${s.to_name}</td>
+      <td>₹${parseFloat(s.amount).toLocaleString('en-IN')}</td>
+      <td>${s.note || '—'}</td>
+    </tr>`).join('');
+}
+
+async function addSettlement() {
+  const body = {
+    group_id: currentGroup.id,
+    paid_by: parseInt(document.getElementById('set-from').value),
+    paid_to: parseInt(document.getElementById('set-to').value),
+    amount: parseFloat(document.getElementById('set-amount').value),
+    settlement_date: document.getElementById('set-date').value,
+    note: document.getElementById('set-note').value
+  };
+  await apiFetch('/settlements', 'POST', body);
+  loadSettlements();
+  document.getElementById('set-amount').value = '';
+}
+
+// ─── IMPORT CSV ──────────────────────────────────────────────────────────────
+async function importCSV() {
+  const file = document.getElementById('csv-file').files[0];
+  if (!file) return alert('Please select a CSV file');
+
+  document.getElementById('import-loading').classList.remove('hidden');
+  document.getElementById('import-report').classList.add('hidden');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API}/import/${currentGroup.id}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+  const report = await res.json();
+  document.getElementById('import-loading').classList.add('hidden');
+  renderImportReport(report);
+}
+
+function renderImportReport(report) {
+  document.getElementById('import-report').classList.remove('hidden');
+
+  document.getElementById('import-summary').innerHTML = `
+    <div class="card" style="flex:1;text-align:center;padding:1rem">
+      <div style="font-size:1.5rem;font-weight:700;color:#16a34a">${report.imported.length}</div>
+      <div style="font-size:0.8rem;color:#666">Imported</div>
+    </div>
+    <div class="card" style="flex:1;text-align:center;padding:1rem">
+      <div style="font-size:1.5rem;font-weight:700;color:#f59e0b">${report.pending.length}</div>
+      <div style="font-size:0.8rem;color:#666">Pending Review</div>
+    </div>
+    <div class="card" style="flex:1;text-align:center;padding:1rem">
+      <div style="font-size:1.5rem;font-weight:700;color:#6b7280">${report.skipped.length}</div>
+      <div style="font-size:0.8rem;color:#666">Skipped</div>
+    </div>
+    <div class="card" style="flex:1;text-align:center;padding:1rem">
+      <div style="font-size:1.5rem;font-weight:700;color:#dc2626">${report.rejected.length}</div>
+      <div style="font-size:0.8rem;color:#666">Rejected</div>
+    </div>`;
+
+  const allRows = [...report.imported, ...report.pending, ...report.skipped, ...report.rejected]
+    .sort((a, b) => a.row - b.row);
+
+  document.getElementById('import-details').innerHTML = allRows.map(r => {
+    const cls = r.action === 'IMPORTED' ? 'imported' : r.action === 'PENDING_RESOLUTION' ? 'pending' : r.action === 'SKIPPED' ? '' : 'rejected';
+    const badge = r.action === 'IMPORTED' ? 'badge-green' : r.action === 'PENDING_RESOLUTION' ? 'badge-yellow' : 'badge-red';
+    const anomalyList = r.anomalies?.map(a => `<div style="margin-top:0.3rem;opacity:0.85">⚠ ${a.description}</div>`).join('') || '';
+    return `<div class="anomaly-item ${cls}">
+      <strong>Row ${r.row}: ${r.description}</strong>
+      <span class="badge ${badge}">${r.action}</span>
+      ${anomalyList}
+    </div>`;
+  }).join('');
+
+  loadExpenses();
+  loadBalances();
+}
+
+// ─── MEMBERS ─────────────────────────────────────────────────────────────────
+async function loadMembers() {
+  const data = await apiFetch(`/groups/${currentGroup.id}/members`);
+  groupMembers = data.filter(m => !m.left_at);
+  document.getElementById('members-table').innerHTML = data.map(m => `
+    <tr>
+      <td>${m.name}</td>
+      <td>${m.email}</td>
+      <td>${new Date(m.joined_at).toLocaleDateString('en-IN')}</td>
+      <td>${m.left_at ? new Date(m.left_at).toLocaleDateString('en-IN') : '—'}</td>
+      <td>${!m.left_at ? `<button class="btn btn-sm" onclick="markLeft(${m.id})">Mark left</button>` : ''}</td>
+    </tr>`).join('');
+}
+
+async function addMember() {
+  const email = document.getElementById('add-member-email').value;
+  const joined_at = document.getElementById('add-member-date').value;
+  const userRes = await apiFetch(`/auth/find?email=${email}`);
+  if (!userRes?.id) return alert('User not found. They must register first.');
+  await apiFetch(`/groups/${currentGroup.id}/members`, 'POST', { user_id: userRes.id, joined_at });
+  loadMembers();
+}
+
+async function markLeft(userId) {
+  const date = prompt('Enter leave date (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+  if (!date) return;
+  await apiFetch(`/groups/${currentGroup.id}/members/${userId}/leave`, 'PATCH', { left_at: date });
+  loadMembers();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+async function apiFetch(path, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  return res.json();
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg ${type}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+if (token && currentUser) showApp();
+</script>
+</body>
+</html>
