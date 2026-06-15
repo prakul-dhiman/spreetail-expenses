@@ -569,16 +569,23 @@ function renderImportReport(report) {
       <div style="font-size:0.8rem;color:#666">Rejected</div>
     </div>`;
 
-  const allRows = [...report.imported, ...report.pending, ...report.skipped, ...report.rejected]
-    .sort((a, b) => a.row - b.row);
+  const tag = (arr, status) => arr.map(r => ({ ...r, _status: status }));
+  const allRows = [
+    ...tag(report.imported, 'IMPORTED'),
+    ...tag(report.pending,  'PENDING'),
+    ...tag(report.skipped,  'SKIPPED'),
+    ...tag(report.rejected, 'REJECTED')
+  ].sort((a, b) => a.row - b.row);
 
   document.getElementById('import-details').innerHTML = allRows.map(r => {
-    const cls = r.action === 'IMPORTED' ? 'imported' : r.action === 'PENDING_RESOLUTION' ? 'pending' : r.action === 'SKIPPED' ? '' : 'rejected';
-    const badge = r.action === 'IMPORTED' ? 'badge-green' : r.action === 'PENDING_RESOLUTION' ? 'badge-yellow' : 'badge-red';
+    const status = r._status;
+    const label  = r.action || status;
+    const cls    = status === 'IMPORTED' ? 'imported' : status === 'PENDING' ? 'pending' : status === 'SKIPPED' ? '' : 'rejected';
+    const badge  = status === 'IMPORTED' ? 'badge-green' : status === 'PENDING' ? 'badge-yellow' : status === 'SKIPPED' ? 'badge-yellow' : 'badge-red';
     const anomalyList = r.anomalies?.map(a => `<div style="margin-top:0.3rem;opacity:0.85">⚠ ${a.description}</div>`).join('') || '';
     return `<div class="anomaly-item ${cls}">
       <strong>Row ${r.row}: ${r.description}</strong>
-      <span class="badge ${badge}">${r.action}</span>
+      <span class="badge ${badge}">${label}</span>
       ${anomalyList}
     </div>`;
   }).join('');
